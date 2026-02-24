@@ -1,0 +1,221 @@
+{
+  "address": "9bygE6GBpYoj6Yz77VEJEy1Rpf59uaWHcdNdzFwbg6Yu",
+  "metadata": {
+    "name": "casino_solana",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "comprar_bloques",
+      "discriminator": [
+        56,
+        192,
+        60,
+        93,
+        180,
+        213,
+        74,
+        129
+      ],
+      "accounts": [
+        {
+          "name": "jugador_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  106,
+                  117,
+                  103,
+                  97,
+                  100,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "tesoreria",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "cantidad",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "inicializar_jugador",
+      "discriminator": [
+        172,
+        137,
+        156,
+        204,
+        247,
+        178,
+        116,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "jugador_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  106,
+                  117,
+                  103,
+                  97,
+                  100,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "reclamar_recompensas",
+      "discriminator": [
+        14,
+        153,
+        151,
+        150,
+        148,
+        11,
+        177,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "jugador_stats",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "jugador_stats"
+          ]
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "EstadoJugador",
+      "discriminator": [
+        86,
+        147,
+        60,
+        201,
+        52,
+        33,
+        213,
+        246
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "EventoBloqueComprado",
+      "discriminator": [
+        38,
+        198,
+        114,
+        61,
+        92,
+        197,
+        106,
+        132
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "EstadoJugador",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "bloques_activos",
+            "type": "u64"
+          },
+          {
+            "name": "ultimo_cobro",
+            "type": "i64"
+          },
+          {
+            "name": "record_personal",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventoBloqueComprado",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "jugador",
+            "type": "pubkey"
+          },
+          {
+            "name": "costo_pagado",
+            "type": "u64"
+          },
+          {
+            "name": "total_bloques",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}
