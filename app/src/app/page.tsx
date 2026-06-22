@@ -33,7 +33,7 @@ const ChatBox = ({ usuario }: { usuario: string }) => {
                 <div ref={endRef} />
             </div>
             <div className="flex gap-2">
-                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && enviar()} placeholder="Type here..." className="flex-grow bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500" />
+                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && enviar()} placeholder="Type here..." className="flex-grow bg-gray-800 text-white rounded px-2 py-1 text-sm border border-gray-700 focus:border-purple-500 outline-none" />
                 <button onClick={enviar} className="bg-purple-600 px-6 py-2 rounded text-sm font-bold hover:bg-purple-500 transition-colors">Send</button>
             </div>
         </div>
@@ -80,9 +80,10 @@ export default function Home() {
   const [cargandoNFTs, setCargandoNFTs] = useState(false);
   const [simulacionActiva, setSimulacionActiva] = useState(false);
   
-  // AUDIO BGM
+  // AUDIO BGM - Track if audio is available
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [masterVolume, setMasterVolume] = useState(0.5);
+  const [audioAvailable, setAudioAvailable] = useState(true);
   
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const tensionAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -109,48 +110,76 @@ export default function Home() {
       '/sounds/sfx_metal.m4a',
   ];
 
+  // Helper function to safely load audio
+  const safeLoadAudio = (src: string): HTMLAudioElement | null => {
+    try {
+      const audio = new Audio(src);
+      audio.addEventListener('error', (e) => {
+        console.warn(`Failed to load audio: ${src}`, e);
+        setAudioAvailable(false);
+      }, { once: true });
+      return audio;
+    } catch (e) {
+      console.warn(`Error creating audio element for ${src}:`, e);
+      setAudioAvailable(false);
+      return null;
+    }
+  };
+
   // Effect for BGM (Atmospheric Bed)
   useEffect(() => {
       if (typeof window !== 'undefined') {
-          bgmRef.current = new Audio(ambientPlaylist[0]);
-          bgmRef.current.crossOrigin = "anonymous"; // Requerido para procesar el audio con Web Audio API
-          bgmRef.current.volume = masterVolume;
-          bgmRef.current.loop = true; // <-- AÑADIDO: Esto hace que el sonido ambiental se repita automáticamente.
-
-          // 1. Configurar Web Audio API (Filtro Pasa-Bajos)
           try {
-              const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-              audioCtxRef.current = new AudioContextClass();
-              filterNodeRef.current = audioCtxRef.current.createBiquadFilter();
-              filterNodeRef.current.type = 'lowpass';
-              filterNodeRef.current.frequency.value = 400; // Empieza sordo por defecto
+              bgmRef.current = safeLoadAudio(ambientPlaylist[0]);
+              if (bgmRef.current) {
+                  bgmRef.current.crossOrigin = "anonymous"; // Requerido para procesar el audio con Web Audio API
+                  bgmRef.current.volume = masterVolume;
+                  bgmRef.current.loop = true; // <-- AÑADIDO: Esto hace que el sonido ambiental se repita automáticamente.
 
-              sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(bgmRef.current);
-              sourceNodeRef.current.connect(filterNodeRef.current);
-              filterNodeRef.current.connect(audioCtxRef.current.destination);
-          } catch (e) { console.warn("Web Audio API no soportada", e); }
+                  // 1. Configurar Web Audio API (Filtro Pasa-Bajos)
+                  try {
+                      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                      audioCtxRef.current = new AudioContextClass();
+                      filterNodeRef.current = audioCtxRef.current.createBiquadFilter();
+                      filterNodeRef.current.type = 'lowpass';
+                      filterNodeRef.current.frequency.value = 400; // Empieza sordo por defecto
 
-          // Also initialize the one-shot player here
-          oneShotAudioRef.current = new Audio();
+                      sourceNodeRef.current = audioCtxRef.current.createMediaElementSource(bgmRef.current);
+                      sourceNodeRef.current.connect(filterNodeRef.current);
+                      filterNodeRef.current.connect(audioCtxRef.current.destination);
+                  } catch (e) { 
+                      console.warn("Web Audio API no soportada", e);
+                      setAudioAvailable(false);
+                  }
+              }
 
-          // Initialize Tension Layer
-          tensionAudioRef.current = new Audio('/sounds/tension_pulse.m4a');
-          tensionAudioRef.current.loop = true;
-          tensionAudioRef.current.volume = 0.5;
+              // Also initialize the one-shot player here
+              oneShotAudioRef.current = safeLoadAudio(oneShotPlaylist[0] || '/sounds/sfx_data.m4a');
+
+              // Initialize Tension Layer
+              tensionAudioRef.current = safeLoadAudio('/sounds/tension_pulse.m4a');
+              if (tensionAudioRef.current) {
+                  tensionAudioRef.current.loop = true;
+                  tensionAudioRef.current.volume = 0.5;
+              }
+          } catch (e) {
+              console.warn("Error initializing audio:", e);
+              setAudioAvailable(false);
+          }
       }
   }, []);
 
   // Effect to update BGM volume when slider changes
   useEffect(() => {
-      if (bgmRef.current) {
+      if (bgmRef.current && audioAvailable) {
           bgmRef.current.volume = audioEnabled ? masterVolume : 0;
       }
-  }, [masterVolume, audioEnabled]);
+  }, [masterVolume, audioEnabled, audioAvailable]);
 
   // Effect for handling the random one-shot playback loop
   useEffect(() => {
       const playRandomOneShot = () => {
-          if (!audioEnabled || !oneShotAudioRef.current || oneShotPlaylist.length === 0) return;
+          if (!audioEnabled || !oneShotAudioRef.current || oneShotPlaylist.length === 0 || !audioAvailable) return;
           
           const randomIndex = Math.floor(Math.random() * oneShotPlaylist.length);
           oneShotAudioRef.current.src = oneShotPlaylist[randomIndex];
@@ -161,7 +190,7 @@ export default function Home() {
           oneShotTimeoutRef.current = setTimeout(playRandomOneShot, randomDelay);
       };
 
-      if (audioEnabled) {
+      if (audioEnabled && audioAvailable) {
           const initialDelay = Math.random() * 10000 + 5000; // 5-15s
           oneShotTimeoutRef.current = setTimeout(playRandomOneShot, initialDelay);
       } else {
@@ -170,7 +199,7 @@ export default function Home() {
       }
 
       return () => { if (oneShotTimeoutRef.current) clearTimeout(oneShotTimeoutRef.current); };
-  }, [audioEnabled, masterVolume]);
+  }, [audioEnabled, masterVolume, audioAvailable]);
 
   // AUDIO REACTIVO: Ajustar Filtro y Tensión según la cantidad de bloques vivos
   useEffect(() => {
@@ -178,7 +207,7 @@ export default function Home() {
       const myBlocks = publicKey ? rankingSupervivencia.filter(b => b.owner === publicKey.toString()).length : 0;
       
       // 1. Dinámica del Filtro Pasa-Bajos (Abre el filtro cuantas más piezas tengas)
-      if (filterNodeRef.current && audioCtxRef.current) {
+      if (filterNodeRef.current && audioCtxRef.current && audioAvailable) {
           const MAX_BLOCKS = 4; // A los 4 bloques alcanza la máxima claridad
           const MIN_FREQ = 400;   // Sordo y lejano
           const MAX_FREQ = 20000; // Sonido totalmente abierto
@@ -191,7 +220,7 @@ export default function Home() {
       }
 
       // 2. Control de la capa de "Tensión / High-stakes"
-      if (tensionAudioRef.current) {
+      if (tensionAudioRef.current && audioAvailable) {
           const tensionRatio = Math.min(myBlocks, 3) / 3; // Alcanza el volumen máximo a los 3 bloques
           tensionAudioRef.current.volume = audioEnabled ? (tensionRatio * masterVolume) : 0;
           
@@ -201,10 +230,10 @@ export default function Home() {
               if (!tensionAudioRef.current.paused) tensionAudioRef.current.pause();
           }
       }
-  }, [rankingSupervivencia, publicKey, audioEnabled, masterVolume]);
+  }, [rankingSupervivencia, publicKey, audioEnabled, masterVolume, audioAvailable]);
 
   const toggleAudio = () => {
-      if (!bgmRef.current) return;
+      if (!bgmRef.current || !audioAvailable) return;
       
       // Los navegadores requieren interacción del usuario para reanudar el AudioContext
       if (audioCtxRef.current?.state === 'suspended') {
@@ -226,11 +255,14 @@ export default function Home() {
   };
 
   const playSfx = (soundUrl: string) => {
-      if (!audioEnabled || !oneShotAudioRef.current) return;
+      if (!audioEnabled || !oneShotAudioRef.current || !audioAvailable) return;
       oneShotAudioRef.current.src = soundUrl;
       oneShotAudioRef.current.volume = audioEnabled ? masterVolume : 0;
       oneShotAudioRef.current.play().catch(() => {});
   };
+
+  const TESORERIA_WALLET = new PublicKey("11111111111111111111111111111111");
+  const COMISION_WALLET = new PublicKey("11111111111111111111111111111111");
 
   useEffect(() => { rankingRef.current = rankingSupervivencia; }, [rankingSupervivencia]);
 
@@ -329,8 +361,8 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [simulacionActiva]);
   
-  const cargarMisNFTs = async () => { if (!publicKey) return; setCargandoNFTs(true); try { const umi = createUmi(connection.rpcEndpoint).use(mplTokenMetadata()); const assets = await fetchAllDigitalAssetByOwner(umi, umiPublicKey(publicKey.toBase58())); const loaded: any[] = []; for (const asset of assets.slice(0, 10)) { if (asset.metadata.uri) { const res = await fetch(asset.metadata.uri); const json = await res.json(); if (json.image) loaded.push({ name: json.name, image: json.image, mint: asset.publicKey }); } } setMisNFTs(loaded); } catch (e) { console.error(e); } finally { setCargandoNFTs(false); } };
-  const getProgram = () => { if (!wallet) return null; const provider = new AnchorProvider(connection, wallet, { preflightCommitment: "processed" }); (idl as any).address = PROGRAM_ID.toString(); return new Program(idl as Idl, provider); };
+  const cargarMisNFTs = async () => { if (!publicKey) return; setCargandoNFTs(true); try { const umi = createUmi(connection.rpcEndpoint).use(mplTokenMetadata()); const assets = await fetchAllDigitalAssetByOwner(umi, umiPublicKey(publicKey.toString())); setMisNFTs(assets.map(a => ({ mint: a.publicKey, image: a.metadata.json?.image || 'https://via.placeholder.com/100x100/png' }))); } catch (e) { console.error("Error cargando NFTs:", e); } finally { setCargandoNFTs(false); } };
+  const getProgram = () => { if (!wallet) return null; const provider = new AnchorProvider(connection, wallet, { preflightCommitment: "processed" }); (idl as any).address = PROGRAM_ID.toString(); return new Program(idl as Idl, PROGRAM_ID, provider); };
   
   const depositarFondos = async () => {
     if (!publicKey || !wallet) return; const amount = parseFloat(montoDeposito); if (isNaN(amount) || amount <= 0) { setMensaje("Invalid Amount"); setTimeout(() => setMensaje(""), 3000); return; }
@@ -361,20 +393,19 @@ export default function Home() {
           // que transfiera `feeDev` a la `COMISION_WALLET`.
           // Ejemplo: await program.methods.pagarComision(new BN(feeDev * 1e9))...
 
-          const feeDev = costoActualBloque * 0.01; const aportePozo = costoActualBloque * 0.99; 
           setPozoComun(prev => prev + aportePozo);
 
           setLastLaunchTime(Date.now());
           setPenaltyCount(prev => prev + 1); 
           
           if (modoPersonalizacion === 'color') gameRef.current.spawnBlock({ tipo: 'color', valor: colorElegido, letra: letraElegida, zona: zonaElegida, owner: publicKey.toString(), userName: nombreUsuario });
-          else gameRef.current.spawnBlock({ tipo: 'imagen', valor: urlImagen || 'https://placehold.co/100x100/png', zona: zonaElegida, owner: publicKey.toString(), userName: nombreUsuario });
+          else gameRef.current.spawnBlock({ tipo: 'imagen', valor: urlImagen || 'https://via.placeholder.com/100x100/png', zona: zonaElegida, owner: publicKey.toString(), userName: nombreUsuario });
       }
   };
 
   const registrarUsuario = () => { if(nombreUsuario.trim().length < 3) { setMensaje("Name too short!"); setTimeout(() => setMensaje(""), 3000); return; } setIsRegistered(true); };
-  const retirarFondos = async () => { if(saldoBilleteraJuego <= 0) return; setLoading(true); setTimeout(() => { setMensaje(`Withdrawn ${saldoBilleteraJuego.toFixed(4)} SOL!`); setSaldoBilleteraJuego(0); setTotalInvertido(0); setTotalGanado(0); setLoading(false); setTimeout(() => setMensaje(""), 3000); }, 1500); };
-  const inicializarJugador = async () => { if (!publicKey || !wallet) return; setLoading(true); try { const program = getProgram(); if (!program) return; const [pda] = PublicKey.findProgramAddressSync([Buffer.from("jugador"), publicKey.toBuffer()], PROGRAM_ID); await program.methods.inicializarJugador().accounts({ jugadorStats: pda, user: publicKey, systemProgram: web3.SystemProgram.programId }).rpc(); setMensaje("Account Created!"); setTimeout(() => setMensaje(""), 3000); } catch (error: any) { setMensaje("Error: " + error.message); setTimeout(() => setMensaje(""), 3000); } finally { setLoading(false); } };
+  const retirarFondos = async () => { if(saldoBilleteraJuego <= 0) return; setLoading(true); setTimeout(() => { setMensaje(`Withdrawn ${saldoBilleteraJuego.toFixed(4)} SOL!`); setSaldoBilleteraJuego(0); setLoading(false); }, 1000); };
+  const inicializarJugador = async () => { if (!publicKey || !wallet) return; setLoading(true); try { const program = getProgram(); if (!program) return; const [pda] = PublicKey.findProgramAddressSync([Buffer.from("jugador"), publicKey.toBuffer()], PROGRAM_ID); await program.methods.crearJugador().accounts({ jugadorStats: pda, user: publicKey, systemProgram: web3.SystemProgram.programId }).rpc(); setMensaje("Player account created!"); setTimeout(() => setMensaje(""), 3000); } catch (error: any) { setMensaje("Error: " + error.message); setTimeout(() => setMensaje(""), 3000); } finally { setLoading(false); } };
   const neto = totalGanado - totalInvertido;
 
   return (
@@ -391,28 +422,28 @@ export default function Home() {
             
             <ul className="space-y-6">
                 <li className="flex gap-4 group">
-                    <span className="bg-gray-800 border border-purple-500/30 text-purple-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors">1</span>
+                    <span className="bg-gray-800 border border-purple-500/30 text-purple-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-all">1</span>
                     <div className="flex flex-col">
                         <strong className="text-sm text-gray-200">Connect Wallet</strong>
                         <span className="text-[11px] text-gray-500 leading-tight mt-1">Link your Phantom or Backpack wallet to enter the game.</span>
                     </div>
                 </li>
                 <li className="flex gap-4 group">
-                    <span className="bg-gray-800 border border-green-500/30 text-green-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-green-600 group-hover:text-white transition-colors">2</span>
+                    <span className="bg-gray-800 border border-green-500/30 text-green-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-green-600 group-hover:text-white transition-all">2</span>
                     <div className="flex flex-col">
                         <strong className="text-sm text-gray-200">Deposit Funds</strong>
                         <span className="text-[11px] text-gray-500 leading-tight mt-1">Add SOL to your in-game balance via the Cashier panel.</span>
                     </div>
                 </li>
                 <li className="flex gap-4 group">
-                    <span className="bg-gray-800 border border-blue-500/30 text-blue-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">3</span>
+                    <span className="bg-gray-800 border border-blue-500/30 text-blue-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">3</span>
                     <div className="flex flex-col">
                         <strong className="text-sm text-gray-200">Drop Blocks</strong>
                         <span className="text-[11px] text-gray-500 leading-tight mt-1">Select a Zone (Z1-Z8) and drop your block. Watch out for physics!</span>
                     </div>
                 </li>
                 <li className="flex gap-4 group">
-                    <span className="bg-gray-800 border border-yellow-500/30 text-yellow-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-yellow-600 group-hover:text-white transition-colors">4</span>
+                    <span className="bg-gray-800 border border-yellow-500/30 text-yellow-400 w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs shrink-0 group-hover:bg-yellow-600 group-hover:text-white transition-all">4</span>
                     <div className="flex flex-col">
                         <strong className="text-sm text-gray-200">Survive & Earn</strong>
                         <span className="text-[11px] text-gray-500 leading-tight mt-1">Earn passive SOL every second your block stays on the tower.</span>
@@ -425,7 +456,7 @@ export default function Home() {
                     <span className="text-xs font-bold text-blue-400">💡 Pro Tip:</span>
                 </div>
                 <p className="text-[10px] text-blue-200/70 leading-relaxed">
-                    Events like <span className="text-red-400">Earthquakes</span> and <span className="text-purple-400">Black Holes</span> are triggered by the blockchain hash. They are unpredictable!
+                    Events like <span className="text-red-400">Earthquakes</span> and <span className="text-purple-400">Black Holes</span> are triggered by the blockchain hash. They are unpredictable chaos!
                 </p>
             </div>
         </div>
@@ -450,10 +481,10 @@ export default function Home() {
                  <div className="text-[9px] text-gray-500">Payout 1% per sec</div>
              </div>
              <div className="flex gap-4 items-center">
-                <button onClick={toggleAudio} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${audioEnabled ? 'bg-green-500/20 border-green-500 text-green-400 shadow-[0_0_10px_rgba(74,222,128,0.5)]' : 'bg-gray-800 border-gray-600 text-gray-500 hover:border-gray-400'}`}>
-                    {audioEnabled ? "🔊" : "🔇"}
+                <button onClick={toggleAudio} disabled={!audioAvailable} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${audioEnabled && audioAvailable ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-gray-700/20 border-gray-600 text-gray-500'} ${!audioAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    {audioAvailable ? (audioEnabled ? "🔊" : "🔇") : "🔇"}
                 </button>
-                {audioEnabled && (
+                {audioEnabled && audioAvailable && (
                 <div className="flex items-center gap-2 bg-gray-800 border border-gray-700 p-2 rounded-lg">
                     <span className="text-[10px] text-gray-400">Volume</span>
                     <input 
@@ -477,7 +508,7 @@ export default function Home() {
 
         <div className="relative">
              <div className="absolute top-10 w-full flex justify-center z-10 pointer-events-none">
-                {eventosActivos.length > 0 && (<div className="px-6 py-2 rounded-full border bg-red-900/90 border-red-500 text-white font-bold animate-pulse shadow-xl">⚠️ {eventosActivos.join(" + ")}</div>)}
+                {eventosActivos.length > 0 && (<div className="px-6 py-2 rounded-full border bg-red-900/90 border-red-500 text-white font-bold animate-pulse shadow-xl">⚠️ {eventosActivos.join(", ")}</div>)}
              </div>
          <GameCanvas ref={gameRef} onReportSurvival={setRankingSupervivencia} masterVolume={masterVolume} audioEnabled={audioEnabled} />
         </div>
@@ -495,22 +526,22 @@ export default function Home() {
             <div className="bg-purple-900 border border-purple-500 p-4 rounded-xl shadow-lg animate-pulse">
                 <h2 className="text-sm font-bold text-white mb-2 uppercase">📝 Registration</h2>
                 <p className="text-[10px] text-gray-300 mb-2">Choose a unique username to start playing.</p>
-                <input type="text" value={nombreUsuario} onChange={(e) => setNombreUsuario(e.target.value)} className="w-full bg-black border border-purple-400 rounded px-2 py-1 text-white font-bold mb-2 text-xs" placeholder="Username..." />
+                <input type="text" value={nombreUsuario} onChange={(e) => setNombreUsuario(e.target.value)} className="w-full bg-black border border-purple-400 rounded px-2 py-1 text-white font-bold text-sm" />
                 <button onClick={registrarUsuario} className="w-full py-2 bg-purple-600 hover:bg-purple-500 rounded text-xs font-bold text-white shadow-lg">REGISTER & PLAY</button>
             </div>
         )}
 
         <div className={`transition-opacity duration-500 ${isRegistered ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
             <div className="bg-gray-900 border border-blue-600 p-4 rounded-xl shadow-lg relative overflow-hidden mb-4">
-                <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-red-500 to-yellow-500 transition-all duration-100 ease-linear" style={{ width: `${(tiempoRestanteCooldown / 15) * 100}%` }} />
+                <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-red-500 to-yellow-500 transition-all duration-100 ease-linear" style={{ width: `${(tiempoRestanteCooldown / 15) * 100}%` }}></div>
                 <h2 className="text-sm font-bold text-white mb-3 uppercase flex justify-between items-center">
                     🏗️ Drop Block
                     {tiempoRestanteCooldown > 0 && <span className="text-[10px] text-red-400 font-bold animate-pulse">HOT 🔥 x{penaltyCount}</span>}
                 </h2>
                 <div className="grid grid-cols-4 gap-1 mb-4">
-                    {[0,1,2,3,4,5,6,7].map(z => (<button key={z} onClick={() => setZonaElegida(z)} className={`py-1 text-[10px] font-bold rounded border ${zonaElegida === z ? 'bg-yellow-600 border-yellow-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-500'}`}>Z{z+1}</button>))}
+                    {[0,1,2,3,4,5,6,7].map(z => (<button key={z} onClick={() => setZonaElegida(z)} className={`py-1 text-[10px] font-bold rounded border ${zonaElegida === z ? 'bg-yellow-600 border-yellow-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'}`}>Z{z+1}</button>))}
                 </div>
-                <button onClick={lanzarBloque} disabled={saldoBilleteraJuego < costoActualBloque} className={`w-full py-4 rounded-lg font-bold text-lg shadow-xl transition-all active:scale-95 flex flex-col items-center justify-center border-b-4 ${saldoBilleteraJuego >= costoActualBloque ? (tiempoRestanteCooldown > 0 ? "bg-orange-600 border-orange-800 hover:bg-orange-500" : "bg-blue-600 border-blue-800 hover:bg-blue-500") : "bg-gray-700 border-gray-800 cursor-not-allowed text-gray-500"}`}>
+                <button onClick={lanzarBloque} disabled={saldoBilleteraJuego < costoActualBloque} className={`w-full py-4 rounded-lg font-bold text-lg shadow-xl transition-all active:scale-95 flex flex-col items-center justify-center ${saldoBilleteraJuego >= costoActualBloque ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black cursor-pointer' : 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'}`}>
                     <span>DROP BLOCK</span>
                     <span className="text-xs font-mono opacity-80 mt-1">Cost: {costoActualBloque.toFixed(4)} SOL</span>
                 </button>
@@ -521,20 +552,20 @@ export default function Home() {
                 <div className="mb-4">
                     <label className="text-xs text-gray-400 mb-1 block">Deposit Amount (SOL):</label>
                     <div className="flex gap-2 mb-2">
-                        <input type="number" step="0.1" min="0" value={montoDeposito} onChange={(e) => setMontoDeposito(e.target.value)} className="w-full bg-gray-800 border border-green-700 rounded px-2 py-1 text-white font-mono text-sm focus:outline-none focus:border-green-500" placeholder="0.00" />
+                        <input type="number" step="0.1" min="0" value={montoDeposito} onChange={(e) => setMontoDeposito(e.target.value)} className="w-full bg-gray-800 border border-green-700 rounded px-2 py-1 text-white text-sm" />
                     </div>
-                    <button onClick={depositarFondos} disabled={loading} className="w-full py-2 bg-green-700 hover:bg-green-600 rounded text-xs font-bold text-white shadow-lg">{loading ? "Processing..." : "DEPOSIT FUNDS"}</button>
+                    <button onClick={depositarFondos} disabled={loading} className="w-full py-2 bg-green-700 hover:bg-green-600 rounded text-xs font-bold text-white shadow-lg">{loading ? "Processing..." : "DEPOSIT"}</button>
                 </div>
-                <button onClick={retirarFondos} disabled={saldoBilleteraJuego <= 0} className="w-full py-2 border border-red-500 text-red-400 hover:bg-red-900/20 rounded text-xs font-bold">WITHDRAW ALL ({saldoBilleteraJuego.toFixed(4)})</button>
+                <button onClick={retirarFondos} disabled={saldoBilleteraJuego <= 0} className="w-full py-2 border border-red-500 text-red-400 hover:bg-red-900/20 rounded text-xs font-bold">WITHDRAW</button>
                 {mensaje && <p className="mt-2 text-xs text-center text-blue-300 bg-blue-900/20 p-1 rounded animate-in fade-in zoom-in duration-300">{mensaje}</p>}
                 <button onClick={inicializarJugador} className="w-full mt-2 text-[9px] text-gray-600 underline text-center">Create Account (If new)</button>
             </div>
 
             <div className="bg-gray-900 border border-purple-500 p-4 rounded-xl shadow-lg mb-4">
                 <h2 className="text-sm font-bold text-white mb-2">🎨 Skin</h2>
-                <div className="flex mb-2 text-xs border-b border-gray-700"> <button onClick={() => setModoPersonalizacion('color')} className={`flex-1 py-1 ${modoPersonalizacion === 'color' ? 'text-purple-400' : 'text-gray-500'}`}>Color</button> <button onClick={() => setModoPersonalizacion('imagen')} className={`flex-1 py-1 ${modoPersonalizacion === 'imagen' ? 'text-purple-400' : 'text-gray-500'}`}>NFT</button> </div>
+                <div className="flex mb-2 text-xs border-b border-gray-700"> <button onClick={() => setModoPersonalizacion('color')} className={`flex-1 py-1 ${modoPersonalizacion === 'color' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-500'}`}>Color</button> <button onClick={() => setModoPersonalizacion('imagen')} className={`flex-1 py-1 ${modoPersonalizacion === 'imagen' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-500'}`}>NFT</button> </div>
                 {modoPersonalizacion === 'color' ? (
-                    <div className="flex gap-2"> <input type="color" value={colorElegido} onChange={(e) => setColorElegido(e.target.value)} className="h-6 w-full bg-transparent cursor-pointer" /> <input type="text" maxLength={3} value={letraElegida} onChange={(e) => setLetraElegida(e.target.value.toUpperCase())} className="w-12 bg-gray-800 border border-gray-600 rounded text-center font-bold text-xs" /> </div>
+                    <div className="flex gap-2"> <input type="color" value={colorElegido} onChange={(e) => setColorElegido(e.target.value)} className="h-6 w-full bg-transparent cursor-pointer" /> </div>
                 ) : (
                     <div className="space-y-2">
                         <button onClick={cargarMisNFTs} disabled={cargandoNFTs} className="w-full py-1 bg-blue-600 hover:bg-blue-500 rounded text-[10px] font-bold text-white transition-colors">
@@ -543,7 +574,7 @@ export default function Home() {
                         {misNFTs.length === 0 && !cargandoNFTs && <p className="text-[9px] text-gray-500 text-center italic">No NFTs found or not loaded.</p>}
                         <div className="grid grid-cols-3 gap-1 max-h-24 overflow-y-auto scrollbar-thin">
                             {misNFTs.map(nft => (
-                                <img key={nft.mint} src={nft.image} onClick={() => setUrlImagen(nft.image)} className={`w-full aspect-square object-cover rounded cursor-pointer border-2 transition-all ${urlImagen === nft.image ? 'border-green-500 opacity-100' : 'border-transparent opacity-60 hover:opacity-100'}`} />
+                                <img key={nft.mint} src={nft.image} onClick={() => setUrlImagen(nft.image)} className={`w-full aspect-square object-cover rounded cursor-pointer border-2 transition-all ${urlImagen === nft.image ? 'border-yellow-400' : 'border-gray-700 hover:border-gray-500'}`} alt="NFT" />
                             ))}
                         </div>
                     </div>
@@ -572,7 +603,7 @@ export default function Home() {
         {/* DEV TOOLS PANEL */}
         <div className="bg-red-900/20 border border-red-500/50 p-4 rounded-xl shadow-lg mt-4">
             <h2 className="text-sm font-bold text-red-400 mb-2 uppercase">🛠️ Auto-Test</h2>
-            <button onClick={() => setSimulacionActiva(!simulacionActiva)} className={`w-full py-2 rounded text-xs font-bold border ${simulacionActiva ? 'bg-red-600 text-white border-red-500 animate-pulse' : 'bg-transparent text-red-400 border-red-500'}`}>{simulacionActiva ? "⏹ STOP SIMULATION" : "▶ START STRESS TEST"}</button>
+            <button onClick={() => setSimulacionActiva(!simulacionActiva)} className={`w-full py-2 rounded text-xs font-bold border ${simulacionActiva ? 'bg-red-600 text-white border-red-500 animate-pulse' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>{simulacionActiva ? 'STOP TEST' : 'START TEST'}</button>
             <p className="text-[9px] text-gray-400 mt-2">Spawns bots & monitors infinite winners.</p>
         </div>
 
