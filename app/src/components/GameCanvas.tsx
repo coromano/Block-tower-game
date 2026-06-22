@@ -35,6 +35,8 @@ export interface GameRef {
 
 interface GameProps {
   onReportSurvival: (bloques: BloqueVivo[]) => void;
+  masterVolume: number;
+  audioEnabled: boolean;
 }
 
 type Particle = { x: number; y: number; angle: number; distance: number; speed: number; size: number; color: string; };
@@ -48,6 +50,32 @@ const GameCanvas = forwardRef<GameRef, GameProps>((props, ref) => {
   const blackHoleImageRef = useRef<HTMLImageElement | null>(null);
   const particlesRef = useRef<Particle[]>([]); 
   const fireParticlesRef = useRef<FireParticle[]>([]); 
+  
+  // --- AUDIO SYSTEM (SFX) ---
+  const soundsRef = useRef<{ [key: string]: HTMLAudioElement }>({});
+  useEffect(() => {
+      if (typeof window !== 'undefined') {
+          soundsRef.current = {
+              quake: new Audio('/sounds/earthquake.m4a'),
+              hole: new Audio('/sounds/blackhole.m4a'),
+              fire: new Audio('/sounds/fire.m4a'),
+              pop: new Audio('/sounds/pop.m4a'),
+              trap: new Audio('/sounds/trap.mp3')
+          };
+      }
+  }, []);
+  const playSfx = (key: string) => { 
+      if (!props.audioEnabled) return;
+      const s = soundsRef.current[key]; 
+      if (s) { 
+          const baseVolumes: { [k: string]: number } = { quake: 0.8, hole: 0.6, fire: 0.5, pop: 0.4, trap: 0.7 };
+          s.volume = (baseVolumes[key] || 1.0) * props.masterVolume;
+          s.currentTime = 0; 
+          s.play().catch((err) => {
+              console.warn(`Silenciado '${key}'. Motivo:`, err.message);
+          }); 
+      } 
+  };
 
   // --- 1. GENERADOR DE FONDO CON ZONAS VISUALES ---
   const generarFondoConZonas = () => {
@@ -148,6 +176,7 @@ const GameCanvas = forwardRef<GameRef, GameProps>((props, ref) => {
       }
     },
     triggerEarthquake: () => {
+      playSfx('quake');
       if (!engineRef.current) return;
       const engine = engineRef.current; let duration = 0;
       const quakeInterval = setInterval(() => {
@@ -161,6 +190,7 @@ const GameCanvas = forwardRef<GameRef, GameProps>((props, ref) => {
       }, 20); 
     },
     triggerBlackHole: () => {
+        playSfx('hole');
         if (!engineRef.current) return;
         const world = engineRef.current.world;
         const x = Math.random() * (GAME_WIDTH - 200) + 100; const y = Math.random() * (GAME_HEIGHT - 300) + 200;
@@ -173,6 +203,7 @@ const GameCanvas = forwardRef<GameRef, GameProps>((props, ref) => {
         Matter.World.add(world, blackHole);
     },
     triggerFire: () => {
+        playSfx('fire');
         if (!engineRef.current) return;
         const blocks = Matter.Composite.allBodies(engineRef.current.world).filter(b => b.label === "block" && !b.plugin.isBurning);
         if (blocks.length > 0) {
@@ -182,6 +213,7 @@ const GameCanvas = forwardRef<GameRef, GameProps>((props, ref) => {
         }
     },
     triggerFloorTrap: () => {
+        playSfx('trap');
         if (!engineRef.current || floorSegmentsRef.current.length === 0) return;
         const world = engineRef.current.world;
         const idx = Math.floor(Math.random() * (floorSegmentsRef.current.length - 1));
@@ -265,7 +297,7 @@ const GameCanvas = forwardRef<GameRef, GameProps>((props, ref) => {
     Matter.Events.on(engine, 'beforeUpdate', () => {
         const blocks = Matter.Composite.allBodies(world).filter(b => b.label === "block");
         const blackHoles = Matter.Composite.allBodies(world).filter(b => b.label === "blackHole");
-        blocks.forEach(block => { if (block.position.y > GAME_HEIGHT + 100) Matter.World.remove(world, block); });
+        blocks.forEach(block => { if (block.position.y > GAME_HEIGHT + 100) { playSfx('pop'); Matter.World.remove(world, block); } });
         
         if (engine.timing.timestamp % 1000 < 20) {
             const reporte: BloqueVivo[] = blocks.map(b => ({ id: b.id, color: b.plugin.originalColor, tiempoVida: Math.floor((Date.now() - b.plugin.createdAt) / 1000), owner: b.plugin.owner, userName: b.plugin.userName }));
