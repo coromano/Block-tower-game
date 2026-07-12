@@ -4,6 +4,13 @@ use anchor_lang::prelude::*;
 // IMPORTANTE: Esta ID es temporal. Luego la actualizaremos.
 declare_id!("9bygE6GBpYoj6Yz77VEJEy1Rpf59uaWHcdNdzFwbg6Yu");
 
+// TODO: Replace with the actual treasury pubkey
+pub mod constants {
+    use anchor_lang::prelude::Pubkey;
+    // 11111111111111111111111111111111 is the System Program
+    pub const TESORERIA_PUBKEY: Pubkey = Pubkey::new_from_array([0; 32]);
+}
+
 // --- CONSTANTES DE ECONOMÍA ---
 // 1 SOL = 1,000,000,000 Lamports
 const PRECIO_BASE: u64 = 50_000_000; // 0.05 SOL
@@ -109,7 +116,7 @@ pub struct ComprarBloque<'info> {
     #[account(mut)]
     pub user: Signer<'info>, 
     /// CHECK: Tesorería del juego
-    #[account(mut)]
+    #[account(mut, address = crate::constants::TESORERIA_PUBKEY)]
     pub tesoreria: AccountInfo<'info>, 
     pub system_program: Program<'info, System>,
 }
