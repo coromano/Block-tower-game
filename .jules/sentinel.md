@@ -1,0 +1,4 @@
+## 2024-07-24 - [Arbitrary Treasury Account Vulnerability]
+**Vulnerability:** Smart contract account constraint missing for the treasury account (`tesoreria`) in the `ComprarBloque` instruction. Furthermore, the frontend contained a duplicate transaction logic bug which erroneously sent funds to `publicKey` instead of the true treasury.
+**Learning:** By default, Anchor does not enforce the address of constant protocol accounts unless strictly defined. This allows an attacker to supply any arbitrary account as the treasury, redirecting and siphoning user funds meant for the protocol during the deposit logic.
+**Prevention:** Ensure constant destination accounts such as the treasury utilize the `address` constraint with `pubkey!("...")` macro in Anchor to explicitly validate the passed account's pubkey against the exact, intended public key.
