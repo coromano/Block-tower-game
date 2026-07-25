@@ -1,0 +1,4 @@
+## 2024-05-18 - [Missing Address Constraint for Protocol Account]
+**Vulnerability:** The Anchor smart contract (`programs/casino_solana/src/lib.rs`) did not have an address constraint for the `tesoreria` account.
+**Learning:** In Solana smart contracts, accounts representing constant destinations for protocol funds (like treasuries or commission wallets) must explicitly validate their address using an `address` constraint to prevent attackers from supplying arbitrary accounts and siphoning funds. The dummy address '11111111111111111111111111111111' should never be used as a placeholder in smart contracts as it represents the System Program ID and can result in unwanted behaviors when passed in as a dummy.
+**Prevention:** Always hardcode known public keys using `pubkey!` (from `solana-program`) and add `#[account(address = ...)]` for protocol destinations. Keep Next.js frontend synchronized.
