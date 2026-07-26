@@ -1,8 +1,11 @@
 use anchor_lang::prelude::*;
-
+use solana_program::pubkey::pubkey;
 
 // IMPORTANTE: Esta ID es temporal. Luego la actualizaremos.
 declare_id!("9bygE6GBpYoj6Yz77VEJEy1Rpf59uaWHcdNdzFwbg6Yu");
+
+// Seguridad: Validar que los fondos siempre vayan a esta cuenta y no a una arbitraria proporcionada por el usuario
+const TESORERIA_WALLET: Pubkey = pubkey!("GmCD67exiNMBEdNe4F2c39FHWwpaU6nn3Jgez6DbXdQh");
 
 // --- CONSTANTES DE ECONOMÍA ---
 // 1 SOL = 1,000,000,000 Lamports
@@ -108,8 +111,8 @@ pub struct ComprarBloque<'info> {
     pub jugador_stats: Account<'info, EstadoJugador>,
     #[account(mut)]
     pub user: Signer<'info>, 
-    /// CHECK: Tesorería del juego
-    #[account(mut)]
+    /// CHECK: Tesorería del juego (se valida que el address sea correcto)
+    #[account(mut, address = TESORERIA_WALLET)]
     pub tesoreria: AccountInfo<'info>, 
     pub system_program: Program<'info, System>,
 }
