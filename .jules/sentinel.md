@@ -1,0 +1,4 @@
+## 2024-05-18 - [Missing Address Constraint for Protocol Account]
+**Vulnerability:** The Anchor smart contract lacked an explicit address constraint on the `tesoreria` account in `programs/casino_solana/src/lib.rs`. The frontend `TESORERIA_WALLET` was initially pointing to an arbitrary string of ones. This allows attackers to supply arbitrary accounts as the `tesoreria` and siphon funds intended for the protocol.
+**Learning:** In Solana smart contracts, accounts representing constant destinations for protocol funds (like treasuries or commission wallets) must explicitly validate their address using an `address` constraint to prevent attackers from supplying arbitrary accounts and stealing funds.
+**Prevention:** Always use the `#[account(address = pubkey!("..."))]` constraint for constant protocol wallets. Also, ensure the frontend utilizes the same real account public key.
