@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::pubkey::pubkey;
 
 
 // IMPORTANTE: Esta ID es temporal. Luego la actualizaremos.
@@ -109,7 +110,9 @@ pub struct ComprarBloque<'info> {
     #[account(mut)]
     pub user: Signer<'info>, 
     /// CHECK: Tesorería del juego
-    #[account(mut)]
+    // SECURITY: Address validation ensures funds can only be sent to the authorized treasury wallet.
+    // Without this, an attacker could supply their own account and steal deposited SOL.
+    #[account(mut, address = pubkey!("GmCD67exiNMBEdNe4F2c39FHWwpaU6nn3Jgez6DbXdQh"))]
     pub tesoreria: AccountInfo<'info>, 
     pub system_program: Program<'info, System>,
 }
