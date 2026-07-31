@@ -1,0 +1,4 @@
+## 2025-03-05 - [Unvalidated Treasury Account in Anchor Smart Contract]
+**Vulnerability:** The Anchor smart contract lacked an `address` constraint on the `tesoreria` (Treasury) account in the `ComprarBloque` context. In Solana, this allows an attacker to supply an arbitrary account as the treasury and siphon the funds meant for the protocol during the purchase.
+**Learning:** In Solana smart contracts, accounts representing constant destinations for protocol funds (like treasuries or commission wallets) must explicitly validate their address to prevent unauthorized diversion of funds.
+**Prevention:** Always enforce an `address` constraint using the `pubkey!` macro on any account that should receive funds, e.g., `#[account(mut, address = pubkey!("..."))]`, avoiding using the system program or arbitrary addresses.
