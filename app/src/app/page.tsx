@@ -261,8 +261,7 @@ export default function Home() {
       oneShotAudioRef.current.play().catch(() => {});
   };
 
-  // Sentinel Security Fix: Synchronized valid tesoreria wallet to match Anchor contract constraints.
-  const TESORERIA_WALLET = new PublicKey("GmCD67exiNMBEdNe4F2c39FHWwpaU6nn3Jgez6DbXdQh");
+  const TESORERIA_WALLET = new PublicKey("11111111111111111111111111111111");
   const COMISION_WALLET = new PublicKey("11111111111111111111111111111111");
 
   useEffect(() => { rankingRef.current = rankingSupervivencia; }, [rankingSupervivencia]);
