@@ -1,0 +1,5 @@
+
+## 2024-08-02 - [CRITICAL] Missing Anchor Account Address Constraint for Treasury
+**Vulnerability:** The Anchor smart contract lacked an explicit `address` constraint for the treasury account (`tesoreria`) in the `ComprarBloque` instruction. This allowed an attacker (or compromised frontend) to pass an arbitrary public key as the treasury and steal deposited funds, as seen in the frontend maliciously calling `comprarBloques` passing the user's own `publicKey` as the `tesoreria`.
+**Learning:** In Solana smart contracts, accounts representing constant destinations for protocol funds (like treasuries or commission wallets) must explicitly validate their address to prevent attackers from supplying arbitrary accounts.
+**Prevention:** Always use the `#[account(address = pubkey!("..."))]` constraint using `anchor_lang::solana_program::pubkey::pubkey` for accounts that have known, fixed addresses to guarantee that funds are only sent to the intended recipient. Avoid using `11111111111111111111111111111111` as a dummy placeholder in frontend code for real operational keys.
