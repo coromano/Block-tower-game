@@ -1,0 +1,4 @@
+## 2024-08-06 - [Missing Address Constraint for Protocol Account]
+**Vulnerability:** The Anchor smart contract lacked a hardcoded `address` constraint on the `tesoreria` account in `ComprarBloque`, leaving it vulnerable to account substitution where an attacker could provide an arbitrary account and siphon fees.
+**Learning:** In Solana smart contracts, accounts representing constant destinations for protocol funds (like treasuries or commission wallets) must explicitly validate their address using an `address` constraint to prevent malicious replacements.
+**Prevention:** Always hardcode valid keys using `address = pubkey!("...")` (from `anchor_lang::prelude::pubkey!`) for system or protocol accounts like treasuries, and never rely on placeholder keys like `11111111111111111111111111111111` which can pass basic tests but fail security constraints.
