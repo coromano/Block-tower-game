@@ -108,8 +108,8 @@ pub struct ComprarBloque<'info> {
     pub jugador_stats: Account<'info, EstadoJugador>,
     #[account(mut)]
     pub user: Signer<'info>, 
-    /// CHECK: Tesorería del juego
-    #[account(mut)]
+    /// CHECK: Tesorería del juego. Protegido contra suplantación de cuenta.
+    #[account(mut, address = pubkey!("GmCD67exiNMBEdNe4F2c39FHWwpaU6nn3Jgez6DbXdQh"))]
     pub tesoreria: AccountInfo<'info>, 
     pub system_program: Program<'info, System>,
 }
