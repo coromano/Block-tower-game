@@ -109,7 +109,10 @@ pub struct ComprarBloque<'info> {
     #[account(mut)]
     pub user: Signer<'info>, 
     /// CHECK: Tesorería del juego
-    #[account(mut)]
+    #[account(
+        mut,
+        address = pubkey!("GmCD67exiNMBEdNe4F2c39FHWwpaU6nn3Jgez6DbXdQh") @ CasinoError::InvalidTesoreria
+    )]
     pub tesoreria: AccountInfo<'info>, 
     pub system_program: Program<'info, System>,
 }
@@ -134,4 +137,10 @@ pub struct EventoBloqueComprado {
     pub jugador: Pubkey,
     pub costo_pagado: u64,
     pub total_bloques: u64,
+}
+
+#[error_code]
+pub enum CasinoError {
+    #[msg("La cuenta de tesorería proporcionada no es válida")]
+    InvalidTesoreria,
 }
