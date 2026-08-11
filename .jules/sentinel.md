@@ -1,0 +1,4 @@
+## 2024-05-24 - [Fix Arbitrary Treasury Destination Vulnerability]
+**Vulnerability:** The Anchor smart contract lacked address validation for the constant `tesoreria` account in the `ComprarBloque` struct. This could allow an attacker to supply an arbitrary account as the destination for protocol funds and steal tokens intended for the game's treasury.
+**Learning:** In Solana smart contracts, accounts representing constant destinations for protocol funds (like treasuries or commission wallets) must explicitly validate their address using an `address` constraint to prevent unauthorized withdrawal or redirection of funds.
+**Prevention:** Always validate accounts representing constant destinations using an `address` constraint with the `pubkey!` macro when defining the account struct in Anchor.

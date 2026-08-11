@@ -109,7 +109,8 @@ pub struct ComprarBloque<'info> {
     #[account(mut)]
     pub user: Signer<'info>, 
     /// CHECK: Tesorería del juego
-    #[account(mut)]
+    // SECURITY: Added address validation to prevent arbitrary treasury account injection
+    #[account(mut, address = pubkey!("GmCD67exiNMBEdNe4F2c39FHWwpaU6nn3Jgez6DbXdQh"))]
     pub tesoreria: AccountInfo<'info>, 
     pub system_program: Program<'info, System>,
 }
