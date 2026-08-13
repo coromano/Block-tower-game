@@ -66,7 +66,7 @@ pub mod casino_solana { // <-- Nombre actualizado a tu proyecto
         let segundos_pasados = tiempo_actual - jugador.ultimo_cobro;
         
         if segundos_pasados > 0 && jugador.bloques_activos > 0 {
-            let recompensa = (jugador.bloques_activos as u64)
+            let recompensa = jugador.bloques_activos
                 .checked_mul(segundos_pasados as u64)
                 .unwrap()
                 .checked_mul(RECOMPENSA_POR_SEGUNDO)
@@ -109,7 +109,7 @@ pub struct ComprarBloque<'info> {
     #[account(mut)]
     pub user: Signer<'info>, 
     /// CHECK: Tesorería del juego
-    #[account(mut)]
+    #[account(mut, address = pubkey!("11111111111111111111111111111111"))]
     pub tesoreria: AccountInfo<'info>, 
     pub system_program: Program<'info, System>,
 }
